@@ -12,6 +12,8 @@ const OpcodeAdd = 1
 const OpcodeMultiple = 2
 const OpcodeHalt = 99
 
+const MagicNumber = 19690720
+
 func main() {
 	content, err := ioutil.ReadFile("day2/input.txt")
 	if err != nil {
@@ -21,6 +23,17 @@ func main() {
 	input[1] = 12
 	input[2] = 2
 	fmt.Println("Value at position 0:", Intcode(append([]int(nil), input...))[0])
+
+	for i := 0; i <= 99; i++ {
+		for j := 0; j <= 99; j++ {
+			input[1], input[2] = i, j
+			if Intcode(append([]int(nil), input...))[0] == MagicNumber {
+				fmt.Println("Find the match! noun:", i, "verb:", j)
+				fmt.Println("100 * noun + verb =", 100*i+j)
+				return
+			}
+		}
+	}
 }
 
 func toIntArray(input []string) []int {

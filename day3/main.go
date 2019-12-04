@@ -32,6 +32,7 @@ func main() {
 	}
 
 	fmt.Println("Closet Manhattan Distance:", ClosetManhattanDistance(Intersections(strings.Split(lines[0], ","), strings.Split(lines[1], ","))))
+	fmt.Println("Fewest Combined Steps:", FewestCombinedSteps(strings.Split(lines[0], ","), strings.Split(lines[1], ",")))
 }
 
 func ClosetManhattanDistance(intersections []Position) int {
@@ -42,21 +43,42 @@ func ClosetManhattanDistance(intersections []Position) int {
 	return minDistance
 }
 
+func FewestCombinedSteps(wire1, wire2 []string) int {
+	fewestSteps := math.MaxInt64
+	for _, steps := range IntersectionsWithSteps(wire1, wire2) {
+		fewestSteps = int(math.Min(float64(fewestSteps), float64(steps)))
+	}
+	return fewestSteps
+}
+
+func IntersectionsWithSteps(wire1, wire2 []string) map[Position]int {
+	intersectionsWithSteps := make(map[Position]int)
+	wire1Positions := positions(wire1)
+	wire2Positions := positions(wire2)
+	for position := range wire1Positions {
+		if wire2Positions[position] != 0 {
+			intersectionsWithSteps[position] = wire1Positions[position] + wire2Positions[position]
+		}
+	}
+	return intersectionsWithSteps
+}
+
 func Intersections(wire1, wire2 []string) []Position {
 	var intersections []Position
 	wire1Positions := positions(wire1)
 	wire2Positions := positions(wire2)
 	for position := range wire1Positions {
-		if wire2Positions[position] {
+		if wire2Positions[position] != 0 {
 			intersections = append(intersections, position)
 		}
 	}
 	return intersections
 }
 
-func positions(wire []string) map[Position]bool {
-	positions := make(map[Position]bool)
+func positions(wire []string) map[Position]int {
+	positions := make(map[Position]int)
 	currentPosition := &Position{}
+	currentSteps := 0
 	for _, op := range wire {
 		direction := op[0]
 		steps, err := strconv.Atoi(op[1:])
@@ -76,7 +98,10 @@ func positions(wire []string) map[Position]bool {
 			default:
 				log.Fatal("Invalid operation")
 			}
-			positions[*currentPosition] = true
+			currentSteps++
+			if positions[*currentPosition] == 0 {
+				positions[*currentPosition] = currentSteps
+			}
 		}
 	}
 	return positions

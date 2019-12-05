@@ -1,11 +1,10 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
+	util "github.com/adventofcode"
 	"log"
 	"math"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -15,21 +14,7 @@ type Position struct {
 }
 
 func main() {
-	file, err := os.Open("day3/input.txt")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	var lines []string
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-
-	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
-	}
+	lines := util.ReadLines("day3/input.txt")
 
 	fmt.Println("Closet Manhattan Distance:", ClosetManhattanDistance(Intersections(strings.Split(lines[0], ","), strings.Split(lines[1], ","))))
 	fmt.Println("Fewest Combined Steps:", FewestCombinedSteps(strings.Split(lines[0], ","), strings.Split(lines[1], ",")))

@@ -12,15 +12,21 @@ const OpcodeAdd = 1
 const OpcodeMultiple = 2
 const OpcodeInput = 3
 const OpcodeOutput = 4
+const OpcodeJumpIfTrue = 5
+const OpcodeJumpIfFalse = 6
+const OpcodeLessThan = 7
+const OpcodeEquals = 8
 const OpcodeHalt = 99
 
-const MagicInput = 1
+const MagicInputPart1 = 1
+const MagicInputPart2 = 5
 
 func main() {
 	lines := util.ReadLines("day5/input.txt")
 
 	input := toIntArray(strings.Split(lines[0], ","))
-	Intcode(input)
+	fmt.Println("Part 1 Find the code: ", Intcode(input))
+	fmt.Println("Part 2 Find the code: ", IntcodePart2(input, MagicInputPart2))
 }
 
 func toIntArray(input []string) []int {
@@ -35,7 +41,101 @@ func toIntArray(input []string) []int {
 	return output
 }
 
-func Intcode(original []int) []int {
+func IntcodePart2(original []int, magicInput int) int {
+	input := append([]int(nil), original...)
+	index := 0
+	for index < len(input) {
+		opcode, parameterMode := input[index]%100, input[index]/100
+		if opcode == OpcodeHalt {
+			break
+		}
+		switch opcode {
+		case OpcodeAdd:
+			parameterModes := parameterModeList(parameterMode, 3)
+			if parameterModes[2] == Immediate {
+				log.Fatal("Can't have immediate mode on write operation - Add")
+			}
+			input[input[index+3]] = parameterValue(input, index+1, parameterModes[0]) + parameterValue(input, index+2, parameterModes[1])
+			index += 4
+		case OpcodeMultiple:
+			parameterModes := parameterModeList(parameterMode, 3)
+			if parameterModes[2] == Immediate {
+				log.Fatal("Can't have immediate mode on write operation - Multiple")
+			}
+			input[input[index+3]] = parameterValue(input, index+1, parameterModes[0]) * parameterValue(input, index+2, parameterModes[1])
+			index += 4
+		case OpcodeInput:
+			parameterModes := parameterModeList(parameterMode, 1)
+			if parameterModes[0] == Immediate {
+				log.Fatal("Can't have immediate mode on write operation - Input")
+			}
+			if index == 0 {
+				input[input[index+1]] = magicInput
+			} else {
+				log.Fatal("no magic input")
+			}
+			index += 2
+		case OpcodeOutput:
+			parameterModes := parameterModeList(parameterMode, 1)
+			output := parameterValue(input, index+1, parameterModes[0])
+			return output
+			//if output == 0 {
+			//	fmt.Println("Test passed! index:", index)
+			//} else if index+2 < len(input) && input[index+2]%100 == OpcodeHalt {
+			//	return output
+			//} else {
+			//	log.Fatal("Invalid output value, output: ", output, "index:", index)
+			//}
+			//index += 2
+		case OpcodeJumpIfTrue:
+			parameterModes := parameterModeList(parameterMode, 2)
+			firstParameter := parameterValue(input, index+1, parameterModes[0])
+			secondParameter := parameterValue(input, index+2, parameterModes[1])
+			if firstParameter != 0 {
+				index = secondParameter
+			} else {
+				index += 3
+			}
+		case OpcodeJumpIfFalse:
+			parameterModes := parameterModeList(parameterMode, 2)
+			firstParameter := parameterValue(input, index+1, parameterModes[0])
+			secondParameter := parameterValue(input, index+2, parameterModes[1])
+			if firstParameter == 0 {
+				index = secondParameter
+			} else {
+				index += 3
+			}
+		case OpcodeLessThan:
+			parameterModes := parameterModeList(parameterMode, 3)
+			firstParameter := parameterValue(input, index+1, parameterModes[0])
+			secondParameter := parameterValue(input, index+2, parameterModes[1])
+			thirdParameter := input[index+3]
+			if firstParameter < secondParameter {
+				input[thirdParameter] = 1
+			} else {
+				input[thirdParameter] = 0
+			}
+			index += 4
+		case OpcodeEquals:
+			parameterModes := parameterModeList(parameterMode, 3)
+			firstParameter := parameterValue(input, index+1, parameterModes[0])
+			secondParameter := parameterValue(input, index+2, parameterModes[1])
+			thirdParameter := input[index+3]
+			if firstParameter == secondParameter {
+				input[thirdParameter] = 1
+			} else {
+				input[thirdParameter] = 0
+			}
+			index += 4
+		default:
+			log.Fatal("Invalid opcode: ", opcode)
+		}
+
+	}
+	return -1
+}
+
+func Intcode(original []int) int {
 	input := append([]int(nil), original...)
 	index := 0
 	for index < len(input) {
@@ -66,7 +166,7 @@ func Intcode(original []int) []int {
 				log.Fatal("Can't have immediate mode on write operation - Input")
 			}
 			if index == 0 {
-				input[input[index+1]] = MagicInput
+				input[input[index+1]] = MagicInputPart1
 			} else {
 				log.Fatal("no magic input")
 			}
@@ -77,7 +177,7 @@ func Intcode(original []int) []int {
 			if output == 0 {
 				fmt.Println("Test passed! index:", index)
 			} else if index+2 < len(input) && input[index+2]%100 == OpcodeHalt {
-				fmt.Println("Find the code: ", output, "index:", index)
+				return output
 			} else {
 				log.Fatal("Invalid output value, output: ", output, "index:", index)
 			}
@@ -87,7 +187,7 @@ func Intcode(original []int) []int {
 		}
 
 	}
-	return input
+	return -1
 }
 
 func parameterValue(input []int, index int, mode ParameterMode) int {

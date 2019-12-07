@@ -123,7 +123,7 @@ func (a *AmplifierSystem) run(firstInput int) int {
 	output := firstInput
 	for i := range a.amplifiers {
 		output = a.amplifiers[i].Intcode(a.phaseSettings[i], output)
-		if output == -1 {
+		if output == OpcodeHalt {
 			break
 		}
 	}
@@ -135,7 +135,7 @@ func (a *AmplifierSystem) runFeedbackLoop() int {
 	finalOutput := 0
 	for true {
 		output := a.run(finalOutput)
-		if output == -1 {
+		if output == OpcodeHalt {
 			break
 		}
 		finalOutput = output
@@ -153,24 +153,10 @@ func (a *Amplifier) Intcode(phaseCode int, inputValue int) int {
 		}
 		switch opcode {
 		case OpcodeAdd:
-			parameterModes := parameterModeList(parameterMode, 3)
-			if parameterModes[2] == Immediate {
-				log.Fatal("Can't have immediate mode on write operation - Add")
-			}
-			a.input[a.input[index+3]] = parameterValue(a.input, index+1, parameterModes[0]) + parameterValue(a.input, index+2, parameterModes[1])
-			index += 4
+			index = a.Add(index, parameterMode)
 		case OpcodeMultiple:
-			parameterModes := parameterModeList(parameterMode, 3)
-			if parameterModes[2] == Immediate {
-				log.Fatal("Can't have immediate mode on write operation - Multiple")
-			}
-			a.input[a.input[index+3]] = parameterValue(a.input, index+1, parameterModes[0]) * parameterValue(a.input, index+2, parameterModes[1])
-			index += 4
+			index = a.Multiple(index, parameterMode)
 		case OpcodeInput:
-			parameterModes := parameterModeList(parameterMode, 1)
-			if parameterModes[0] == Immediate {
-				log.Fatal("Can't have immediate mode on write operation - Input")
-			}
 			if a.usePhaseSetting {
 				a.input[a.input[index+1]] = phaseCode
 				a.usePhaseSetting = false
@@ -179,96 +165,89 @@ func (a *Amplifier) Intcode(phaseCode int, inputValue int) int {
 			}
 			index += 2
 		case OpcodeOutput:
-			parameterModes := parameterModeList(parameterMode, 1)
-			output := parameterValue(a.input, index+1, parameterModes[0])
+			output := a.parameters(index+1, 1, parameterMode)[0]
 			a.index = index + 2
 			return output
-			//if output == 0 {
-			//	fmt.Println("Test passed! index:", index)
-			//} else if index+2 < len(input) && input[index+2]%100 == OpcodeHalt {
-			//	return output
-			//} else {
-			//	log.Fatal("Invalid output value, output: ", output, "index:", index)
-			//}
-			//index += 2
 		case OpcodeJumpIfTrue:
-			parameterModes := parameterModeList(parameterMode, 2)
-			firstParameter := parameterValue(a.input, index+1, parameterModes[0])
-			secondParameter := parameterValue(a.input, index+2, parameterModes[1])
-			if firstParameter != 0 {
-				index = secondParameter
-			} else {
-				index += 3
-			}
+			index = a.JumpIfTrue(index, parameterMode)
 		case OpcodeJumpIfFalse:
-			parameterModes := parameterModeList(parameterMode, 2)
-			firstParameter := parameterValue(a.input, index+1, parameterModes[0])
-			secondParameter := parameterValue(a.input, index+2, parameterModes[1])
-			if firstParameter == 0 {
-				index = secondParameter
-			} else {
-				index += 3
-			}
+			index = a.JumpIfFalse(index, parameterMode)
 		case OpcodeLessThan:
-			parameterModes := parameterModeList(parameterMode, 3)
-			firstParameter := parameterValue(a.input, index+1, parameterModes[0])
-			secondParameter := parameterValue(a.input, index+2, parameterModes[1])
-			thirdParameter := a.input[index+3]
-			if firstParameter < secondParameter {
-				a.input[thirdParameter] = 1
-			} else {
-				a.input[thirdParameter] = 0
-			}
-			index += 4
+			index = a.LessThan(index, parameterMode)
 		case OpcodeEquals:
-			parameterModes := parameterModeList(parameterMode, 3)
-			firstParameter := parameterValue(a.input, index+1, parameterModes[0])
-			secondParameter := parameterValue(a.input, index+2, parameterModes[1])
-			thirdParameter := a.input[index+3]
-			if firstParameter == secondParameter {
-				a.input[thirdParameter] = 1
-			} else {
-				a.input[thirdParameter] = 0
-			}
-			index += 4
+			index = a.Equals(index, parameterMode)
 		default:
 			log.Fatal("Invalid opcode: ", opcode)
 		}
 
 	}
-	return -1
+	return OpcodeHalt
 }
 
-func parameterValue(input []int, index int, mode ParameterMode) int {
-	switch mode {
-	case Position:
-		return input[input[index]]
-	case Immediate:
-		return input[index]
-	default:
-		log.Fatal("Invalid mode:", mode)
-		return -1
+func (a *Amplifier) Add(index, parameterMode int) int {
+	parameterValues := a.parameters(index+1, 2, parameterMode)
+	a.input[a.input[index+3]] = parameterValues[0] + parameterValues[1]
+	return index + 4
+}
+
+func (a *Amplifier) Multiple(index, parameterMode int) int {
+	parameterValues := a.parameters(index+1, 2, parameterMode)
+	a.input[a.input[index+3]] = parameterValues[0] * parameterValues[1]
+	return index + 4
+}
+
+func (a *Amplifier) JumpIfTrue(index, parameterMode int) int {
+	parameterValues := a.parameters(index+1, 2, parameterMode)
+	if parameterValues[0] != 0 {
+		return parameterValues[1]
+	} else {
+		return index + 3
 	}
 }
 
-func parameterModeList(parameterMode, len int) []ParameterMode {
-	parameterModeList := make([]ParameterMode, len)
-	for i := 0; i < len; i++ {
-		currentMode := Position
+func (a *Amplifier) JumpIfFalse(index, parameterMode int) int {
+	parameterValues := a.parameters(index+1, 2, parameterMode)
+	if parameterValues[0] == 0 {
+		return parameterValues[1]
+	} else {
+		return index + 3
+	}
+}
+
+func (a *Amplifier) LessThan(index, parameterMode int) int {
+	parameterValues := a.parameters(index+1, 2, parameterMode)
+	firstParameter, secondParameter := parameterValues[0], parameterValues[1]
+	thirdParameter := a.input[index+3]
+	if firstParameter < secondParameter {
+		a.input[thirdParameter] = 1
+	} else {
+		a.input[thirdParameter] = 0
+	}
+	return index + 4
+}
+
+func (a *Amplifier) Equals(index, parameterMode int) int {
+	parameterValues := a.parameters(index+1, 2, parameterMode)
+	firstParameter, secondParameter := parameterValues[0], parameterValues[1]
+	thirdParameter := a.input[index+3]
+	if firstParameter == secondParameter {
+		a.input[thirdParameter] = 1
+	} else {
+		a.input[thirdParameter] = 0
+	}
+	return index + 4
+}
+
+func (a *Amplifier) parameters(startingIndex, numberOfParameters, parameterMode int) []int {
+	parameterValues := make([]int, 0)
+	for i := 0; i < numberOfParameters; i++ {
 		if parameterMode%10 == 1 {
-			currentMode = Immediate
-		} else if parameterMode%10 != 0 {
-			log.Fatal("Invalid parameter mode:", parameterMode%10)
+			parameterValues = append(parameterValues, a.input[startingIndex+i])
+		} else {
+			parameterValues = append(parameterValues, a.input[a.input[startingIndex+i]])
 		}
-		parameterModeList[i] = currentMode
 		parameterMode = parameterMode / 10
 	}
-	return parameterModeList
+
+	return parameterValues
 }
-
-type ParameterMode int
-
-const (
-	Position ParameterMode = iota
-	Immediate
-)

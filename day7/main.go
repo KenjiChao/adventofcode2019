@@ -25,12 +25,20 @@ type Amplifier struct {
 }
 
 type AmplifierSystem struct {
-	phaseSettings int
-	ampA          Amplifier
-	ampB          Amplifier
-	ampC          Amplifier
-	ampD          Amplifier
-	ampE          Amplifier
+	phaseSettings []int
+	amplifiers    []Amplifier
+}
+
+func NewAmplifier(input []int) Amplifier {
+	return Amplifier{append([]int(nil), input...), true, 0}
+}
+
+func NewAmplifiers(input []int, len int) []Amplifier {
+	var amplifiers []Amplifier
+	for i := 0; i < len; i++ {
+		amplifiers = append(amplifiers, NewAmplifier(input))
+	}
+	return amplifiers
 }
 
 func main() {
@@ -42,6 +50,25 @@ func main() {
 	fmt.Println("Max output signal: ", maxOutput, phaseSettings)
 	maxOutput, phaseSettings = MaxOutput(input, true)
 	fmt.Println("Feedback Max output signal: ", maxOutput, phaseSettings)
+}
+
+func Permutations(nums []int) [][]int {
+	result := make([][]int, 0)
+	permute(nums, 0, &result)
+	return result
+}
+
+func permute(nums []int, start int, result *[][]int) {
+	if start == len(nums) {
+		*result = append(*result, append([]int(nil), nums...))
+		return
+	}
+
+	for i := start; i < len(nums); i++ {
+		nums[start], nums[i] = nums[i], nums[start]
+		permute(nums, start+1, result)
+		nums[start], nums[i] = nums[i], nums[start]
+	}
 }
 
 func toIntArray(input []string) []int {
@@ -56,125 +83,65 @@ func toIntArray(input []string) []int {
 	return output
 }
 
-func MaxOutput(input []int, feedbackLoop bool) (int, int) {
+func MaxOutput(input []int, feedbackLoop bool) (int, []int) {
 	maxOutput := 0
-	phaseSettings := 0
+	var maxPhaseSettings []int
 
-	openSet := map[int]bool{
-		0: true,
-		1: true,
-		2: true,
-		3: true,
-		4: true,
-	}
-
+	var phaseSet []int
 	if feedbackLoop {
-		openSet = map[int]bool{
-			5: true,
-			6: true,
-			7: true,
-			8: true,
-			9: true,
-		}
+		phaseSet = []int{5, 6, 7, 8, 9}
+	} else {
+		phaseSet = []int{0, 1, 2, 3, 4}
 	}
 
-	for i, oki := range openSet {
-		if oki {
-			openSet[i] = false
-			for j, okj := range openSet {
-				if okj {
-					openSet[j] = false
-					for k, okk := range openSet {
-						if okk {
-							openSet[k] = false
-							for l, okl := range openSet {
-								if okl {
-									openSet[l] = false
-									for m, okm := range openSet {
-										if okm {
-											openSet[m] = false
-
-											output := initAndRun(input, i, j, k, l, m, feedbackLoop)
-											if output > maxOutput {
-												maxOutput = output
-												phaseSettings = i*10000 + j*1000 + k*100 + l*10 + m
-											}
-											openSet[m] = true
-										}
-									}
-									openSet[l] = true
-								}
-							}
-							openSet[k] = true
-						}
-					}
-					openSet[j] = true
-				}
-			}
-			openSet[i] = true
+	for _, phaseSettings := range Permutations(phaseSet) {
+		output := initAndRun(input, phaseSettings, feedbackLoop)
+		if output > maxOutput {
+			maxOutput = output
+			maxPhaseSettings = phaseSettings
 		}
 	}
-
-	return maxOutput, phaseSettings
+	return maxOutput, maxPhaseSettings
 }
 
-func initAndRun(input []int, i, j, k, l, m int, feedbackLoop bool) int {
-	a := &AmplifierSystem{
-		phaseSettings: i*10000 + j*1000 + k*100 + l*10 + m,
-		ampA:          Amplifier{append([]int(nil), input...), true, 0},
-		ampB:          Amplifier{append([]int(nil), input...), true, 0},
-		ampC:          Amplifier{append([]int(nil), input...), true, 0},
-		ampD:          Amplifier{append([]int(nil), input...), true, 0},
-		ampE:          Amplifier{append([]int(nil), input...), true, 0},
+func initAndRun(input []int, phaseSettings []int, feedbackLoop bool) int {
+	a := AmplifierSystem{
+		phaseSettings: phaseSettings,
+		amplifiers:    NewAmplifiers(input, 5),
 	}
 
 	output := 0
 	if feedbackLoop {
 		output = a.runFeedbackLoop()
 	} else {
-		output = a.run()
+		output = a.run(0)
 	}
 	return output
 }
 
-func (a *AmplifierSystem) run() int {
-	output1 := a.ampA.Intcode(a.phaseSettings/10000, 0)
-	output2 := a.ampB.Intcode(a.phaseSettings/1000%10, output1)
-	output3 := a.ampC.Intcode(a.phaseSettings/100%10, output2)
-	output4 := a.ampD.Intcode(a.phaseSettings/10%10, output3)
-	output5 := a.ampE.Intcode(a.phaseSettings%10, output4)
-	return output5
+func (a *AmplifierSystem) run(firstInput int) int {
+	output := firstInput
+	for i := range a.amplifiers {
+		output = a.amplifiers[i].Intcode(a.phaseSettings[i], output)
+		if output == -1 {
+			break
+		}
+	}
+
+	return output
 }
 
 func (a *AmplifierSystem) runFeedbackLoop() int {
-	output := 0
-	input := 0
+	finalOutput := 0
 	for true {
-		output1 := a.ampA.Intcode(a.phaseSettings/10000, input)
-		if output1 == -1 {
+		output := a.run(finalOutput)
+		if output == -1 {
 			break
 		}
-		output2 := a.ampB.Intcode(a.phaseSettings/1000%10, output1)
-		if output2 == -1 {
-			break
-		}
-		output3 := a.ampC.Intcode(a.phaseSettings/100%10, output2)
-		if output3 == -1 {
-			break
-		}
-		output4 := a.ampD.Intcode(a.phaseSettings/10%10, output3)
-		if output4 == -1 {
-			break
-		}
-		output5 := a.ampE.Intcode(a.phaseSettings%10, output4)
-		if output5 == -1 {
-			break
-		}
-		input = output5
-		output = output5
+		finalOutput = output
 	}
 
-	return output
+	return finalOutput
 }
 
 func (a *Amplifier) Intcode(phaseCode int, inputValue int) int {

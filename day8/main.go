@@ -11,7 +11,7 @@ const (
 	Width            = 25
 	Height           = 6
 	Pixels           = Width * Height
-	BlackColor = 0
+	BlackColor       = 0
 	TransparentColor = 2
 )
 
@@ -23,9 +23,8 @@ func main() {
 
 	layers := toLayers(lines[0])
 	layer := fewestZeoDigitLayer(layers)
-	fmt.Println(layer)
-	fmt.Println("Part 1:", layer.numberOfDigit(1)*layer.numberOfDigit(2))
-	fmt.Println(layers.decode())
+	fmt.Printf("Part 1: %v\n", layer.numberOfDigit(1)*layer.numberOfDigit(2))
+	fmt.Printf("Part 2:\n%v\n", layers.decode())
 }
 
 func (l *Layer) numberOfDigit(digit int) int {
@@ -45,10 +44,10 @@ func (l Layer) String() string {
 	for _, row := range l {
 		for _, pixel := range row {
 			if pixel == BlackColor {
-				//sb.WriteString(strconv.Itoa(pixel))
-				sb.WriteString(" ")
+				sb.WriteString("  ")
 			} else {
-				sb.WriteString("O")
+				sb.WriteRune('◯')
+				sb.WriteString(" ")
 			}
 		}
 		sb.WriteString("\n")

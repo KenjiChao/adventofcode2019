@@ -8,25 +8,33 @@ import (
 	"strconv"
 )
 
-type Asteroid struct {
-	x int
-	y int
+type Point struct {
+	x          int
+	y          int
+	isAsteroid bool
 }
 
 func main() {
 	lines := util.ReadLines("day10/input.txt")
 
-	asteroids := toAsteroids(lines)
-	fmt.Println("Part 1:", MaxAsteroidsDetected(asteroids))
+	points := toAsteroids(lines)
+	fmt.Println("Part 1:", MaxAsteroidsDetected(points))
 }
 
-func toAsteroids(lines []string) []Asteroid {
-	asteroids := make([]Asteroid, 0)
+func toAsteroids(lines []string) [][]Point {
+	rows := len(lines)
+	cols := len(lines[0])
+	asteroids := make([][]Point, rows)
+	for i := range asteroids {
+		asteroids[i] = make([]Point, cols)
+	}
 
 	for i := range lines {
 		for j, r := range lines[i] {
-			if r == '#' {
-				asteroids = append(asteroids, Asteroid{x: j, y: i})
+			asteroids[i][j] = Point{
+				x:          j,
+				y:          i,
+				isAsteroid: r == '#',
 			}
 		}
 	}
@@ -34,25 +42,32 @@ func toAsteroids(lines []string) []Asteroid {
 	return asteroids
 }
 
-func MaxAsteroidsDetected(asteroids []Asteroid) int {
+func MaxAsteroidsDetected(asteroids [][]Point) int {
 	max := 0
-	for _, a := range asteroids {
-		detected := asteroidsDetected(asteroids, a)
-		if detected > max {
-			max = detected
+	for i := range asteroids {
+		for j := range asteroids[i] {
+			detected := asteroidsDetected(asteroids, asteroids[i][j])
+			if detected > max {
+				max = detected
+			}
 		}
 	}
 	return max
 }
 
-func asteroidsDetected(asteroids []Asteroid, a Asteroid) int {
+func asteroidsDetected(asteroids [][]Point, a Point) int {
+	if !a.isAsteroid {
+		return 0
+	}
 	hashSet := make(map[string]bool)
 	for i := range asteroids {
-		if asteroids[i] != a {
-			dx := asteroids[i].x - a.x
-			dy := asteroids[i].y - a.y
-			gcd := gcd(dx, dy)
-			hashSet[hash(dx/gcd, dy/gcd)] = true
+		for j := range asteroids[i] {
+			if asteroids[i][j] != a && asteroids[i][j].isAsteroid {
+				dx := asteroids[i][j].x - a.x
+				dy := asteroids[i][j].y - a.y
+				gcd := gcd(dx, dy)
+				hashSet[hash(dx/gcd, dy/gcd)] = true
+			}
 		}
 	}
 	return len(hashSet)

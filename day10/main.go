@@ -177,9 +177,7 @@ func hash(a, b int) string {
 
 func gcd(a, b int) int {
 	for b != 0 {
-		t := b
-		b = a % b
-		a = t
+		a, b = b, a%b
 	}
 	return int(math.Abs(float64(a)))
 }

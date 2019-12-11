@@ -201,7 +201,7 @@ func Intcode(original []int, position Position, defaultColor int) int {
 			}
 
 			sb := strings.Builder{}
-			for i := range grid {
+			for i := len(grid) - 1; i >= 0; i-- {
 				for j := range grid[i] {
 					if grid[i][j] == 1 {
 						sb.WriteRune('O')

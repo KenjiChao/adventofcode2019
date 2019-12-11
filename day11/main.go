@@ -45,8 +45,11 @@ func main() {
 	fmt.Println("Part 1:", Intcode(input, Position{
 		point:     Point{},
 		direction: Up,
-	}))
-	//fmt.Println("Part 2:", Intcode(input, 2))
+	}, 0))
+	fmt.Println("Part 2:", Intcode(input, Position{
+		point:     Point{},
+		direction: Up,
+	}, 1))
 }
 
 func toIntArray(input []string) []int {
@@ -61,7 +64,7 @@ func toIntArray(input []string) []int {
 	return output
 }
 
-func Intcode(original []int, position Position) int {
+func Intcode(original []int, position Position, defaultColor int) int {
 	input := make([]int, len(original))
 	copy(input, original)
 	var output []int
@@ -73,6 +76,8 @@ func Intcode(original []int, position Position) int {
 		Down:  {0, -1,},
 		Left:  {-1, 0,},
 	}
+
+	pointRange := []int{0, 0, 0, 0}
 
 	getMemoryPointer := func(index int) *int {
 		for int(len(input)) <= index {
@@ -109,7 +114,15 @@ func Intcode(original []int, position Position) int {
 			index += 4
 		case Input:
 			a := getParameter(1)
-			*a = colorMap[position.point]
+			var color int
+			val, ok := colorMap[position.point]
+			if ok {
+				color = val
+			} else {
+				color = defaultColor
+			}
+
+			*a = color
 			index += 2
 		case Output:
 			a := getParameter(1)
@@ -127,6 +140,11 @@ func Intcode(original []int, position Position) int {
 					},
 					direction: nextDirection,
 				}
+
+				pointRange[0] = int(math.Min(float64(pointRange[0]), float64(position.point.x)))
+				pointRange[1] = int(math.Max(float64(pointRange[1]), float64(position.point.x)))
+				pointRange[2] = int(math.Min(float64(pointRange[2]), float64(position.point.y)))
+				pointRange[3] = int(math.Max(float64(pointRange[3]), float64(position.point.y)))
 				//fmt.Println("new:", position)
 			}
 			index += 2
@@ -167,6 +185,34 @@ func Intcode(original []int, position Position) int {
 			relativeBase += *a
 			index += 2
 		case Halt:
+			xRange := pointRange[1] - pointRange[0] + 1
+			yRange := pointRange[3] - pointRange[2] + 1
+			grid := make([][]int, yRange)
+			for i := range grid {
+				grid[i] = make([]int, xRange)
+			}
+			offset := Point{
+				x: -pointRange[0],
+				y: -pointRange[2],
+			}
+
+			for point, color := range colorMap {
+				grid[point.y+offset.y][point.x+offset.x] = color
+			}
+
+			sb := strings.Builder{}
+			for i := range grid {
+				for j := range grid[i] {
+					if grid[i][j] == 1 {
+						sb.WriteRune('O')
+					} else {
+						sb.WriteRune(' ')
+					}
+				}
+				sb.WriteRune('\n')
+			}
+			fmt.Println(sb.String())
+
 			return len(colorMap)
 		default:
 			log.Fatal("Invalid opcode: ", opcode)

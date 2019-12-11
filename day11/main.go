@@ -38,6 +38,15 @@ type Position struct {
 	direction Direction
 }
 
+func (p *Position) move(turn int) {
+	xSteps := []int{0, 1, 0, -1}
+	ySteps := []int{1, 0, -1, 0}
+
+	p.direction = Direction((int(p.direction) + 2*turn - 1 + 4) % 4)
+	p.point.x += xSteps[p.direction]
+	p.point.y += ySteps[p.direction]
+}
+
 func main() {
 	lines := util.ReadLines("day11/input.txt")
 
@@ -56,7 +65,7 @@ func toIntArray(input []string) []int {
 	output := make([]int, len(input))
 	for i, data := range input {
 		val, err := strconv.Atoi(data)
-		output[i] = int(val)
+		output[i] = val
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -70,17 +79,10 @@ func Intcode(original []int, position Position, defaultColor int) int {
 	var output []int
 
 	colorMap := make(map[Point]int)
-	stepMap := map[Direction]Point{
-		Up:    {0, 1,},
-		Right: {1, 0,},
-		Down:  {0, -1,},
-		Left:  {-1, 0,},
-	}
-
 	pointRange := []int{0, 0, 0, 0}
 
 	getMemoryPointer := func(index int) *int {
-		for int(len(input)) <= index {
+		for len(input) <= index {
 			input = append(input, 0)
 		}
 		return &input[index]
@@ -128,24 +130,14 @@ func Intcode(original []int, position Position, defaultColor int) int {
 			a := getParameter(1)
 			output = append(output, *a)
 			if len(output)%2 == 0 {
-				// fmt.Println("current:", position)
 				instruction := output[len(output)-2:]
-				// fmt.Println("instruction:", instruction)
 				colorMap[position.point] = instruction[0]
-				nextDirection := nextDirection(position.direction, instruction[1])
-				position = Position{
-					point: Point{
-						x: position.point.x + stepMap[nextDirection].x,
-						y: position.point.y + stepMap[nextDirection].y,
-					},
-					direction: nextDirection,
-				}
+				position.move(instruction[1])
 
 				pointRange[0] = int(math.Min(float64(pointRange[0]), float64(position.point.x)))
 				pointRange[1] = int(math.Max(float64(pointRange[1]), float64(position.point.x)))
 				pointRange[2] = int(math.Min(float64(pointRange[2]), float64(position.point.y)))
 				pointRange[3] = int(math.Max(float64(pointRange[3]), float64(position.point.y)))
-				//fmt.Println("new:", position)
 			}
 			index += 2
 		case JumpIfTrue:
@@ -219,15 +211,4 @@ func Intcode(original []int, position Position, defaultColor int) int {
 		}
 
 	}
-}
-
-func nextDirection(d Direction, code int) Direction {
-	newDirection := code*2 - 1 + int(d)
-	if newDirection < 0 {
-		newDirection += 4
-	}
-	if newDirection >= 4 {
-		newDirection -= 4
-	}
-	return Direction(newDirection)
 }

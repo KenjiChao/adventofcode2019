@@ -4,6 +4,7 @@ import (
 	"fmt"
 	util "github.com/adventofcode"
 	"math"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -88,11 +89,84 @@ func main() {
 	lines := util.ReadLines("day12/input.txt")
 
 	state := NewState(lines)
+	initialState := NewState(lines)
+	fmt.Println(reflect.DeepEqual(state, initialState))
 
 	for i := 0; i < 1000; i++ {
 		state.nextStep()
 	}
 	fmt.Println(state.totalEnergy())
+
+	state = NewState(lines)
+	state.nextStep()
+	xsteps := 1
+	for ; !isXAxisEquals(state, initialState); xsteps++ {
+		state.nextStep()
+	}
+
+	state = NewState(lines)
+	state.nextStep()
+	ysteps := 1
+	for ; !isYAxisEquals(state, initialState); ysteps++ {
+		state.nextStep()
+	}
+
+	state = NewState(lines)
+	state.nextStep()
+	zsteps := 1
+	for ; !isZAxisEquals(state, initialState); zsteps++ {
+		state.nextStep()
+	}
+	fmt.Println(xsteps, ysteps, zsteps)
+	fmt.Println(LCM(xsteps, ysteps, zsteps))
+}
+
+// greatest common divisor (GCD) via Euclidean algorithm
+func GCD(a, b int) int {
+	for b != 0 {
+		t := b
+		b = a % b
+		a = t
+	}
+	return a
+}
+
+// find Least Common Multiple (LCM) via GCD
+func LCM(a, b int, integers ...int) int {
+	result := a * b / GCD(a, b)
+
+	for i := 0; i < len(integers); i++ {
+		result = LCM(result, integers[i])
+	}
+
+	return result
+}
+
+func isXAxisEquals(s1, s2 State) bool {
+	for i := range s1 {
+		if (s1[i].p.x != s2[i].p.x) || (s1[i].v.x != s2[i].v.x) {
+			return false
+		}
+	}
+	return true
+}
+
+func isYAxisEquals(s1, s2 State) bool {
+	for i := range s1 {
+		if (s1[i].p.y != s2[i].p.y) || (s1[i].v.y != s2[i].v.y) {
+			return false
+		}
+	}
+	return true
+}
+
+func isZAxisEquals(s1, s2 State) bool {
+	for i := range s1 {
+		if (s1[i].p.z != s2[i].p.z) || (s1[i].v.z != s2[i].v.z) {
+			return false
+		}
+	}
+	return true
 }
 
 func NewState(lines []string) State {

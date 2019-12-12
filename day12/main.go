@@ -9,64 +9,29 @@ import (
 	"strings"
 )
 
-type Position struct {
+type Tuple struct {
 	x, y, z int
 }
 
-func (p Position) potentialEnergy() int {
-	return int(math.Abs(float64(p.x)) + math.Abs(float64(p.y)) + math.Abs(float64(p.z)))
+func (t *Tuple) energy() int {
+	return int(math.Abs(float64(t.x)) + math.Abs(float64(t.y)) + math.Abs(float64(t.z)))
 }
 
-type Velocity struct {
-	x, y, z int
+func (t *Tuple) move(v Tuple) {
+	t.x += v.x
+	t.y += v.y
+	t.z += v.z
 }
 
-func (v Velocity) kineticEnergy() int {
-	return int(math.Abs(float64(v.x)) + math.Abs(float64(v.y)) + math.Abs(float64(v.z)))
-}
-
-type Point struct {
-	p Position
-	v Velocity
-}
-
-func (p Point) energy() int {
-	return p.p.potentialEnergy() * p.v.kineticEnergy()
-}
-
-type State []Point
-
-func (s *State) nextStep() {
-	for i := range *s {
-		dx, dy, dz := 0, 0, 0
-		for j := range *s {
-			if i == j {
-				continue
-			}
-			a, b, c := diffVelocity((*s)[i].p, (*s)[j].p)
-			dx += a
-			dy += b
-			dz += c
-		}
-		// Update Velocity
-		(*s)[i].v.x += dx
-		(*s)[i].v.y += dy
-		(*s)[i].v.z += dz
-	}
-
-	// Update Position
-	for i := range *s {
-		(*s)[i].p.x += (*s)[i].v.x
-		(*s)[i].p.y += (*s)[i].v.y
-		(*s)[i].p.z += (*s)[i].v.z
+func (t *Tuple) diff(v Tuple) Tuple {
+	return Tuple{
+		x: compareInt(t.x, v.x),
+		y: compareInt(t.y, v.y),
+		z: compareInt(t.z, v.z),
 	}
 }
 
-func diffVelocity(p, q Position) (int, int, int) {
-	return diffStep(p.x, q.x), diffStep(p.y, q.y), diffStep(p.z, q.z)
-}
-
-func diffStep(a, b int) int {
+func compareInt(a, b int) int {
 	if a == b {
 		return 0
 	}
@@ -74,6 +39,40 @@ func diffStep(a, b int) int {
 		return -1
 	}
 	return 1
+}
+
+type Point struct {
+	position Tuple
+	velocity Tuple
+}
+
+func (p Point) energy() int {
+	return p.position.energy() * p.velocity.energy()
+}
+
+type State []Point
+
+func (s *State) updateVelocity() {
+	for i := range *s {
+		for j := range *s {
+			if i == j {
+				continue
+			}
+			positionDiff := (*s)[i].position.diff((*s)[j].position)
+			(*s)[i].velocity.move(positionDiff)
+		}
+	}
+}
+
+func (s *State) move() {
+	for i := range *s {
+		(*s)[i].position.move((*s)[i].velocity)
+	}
+}
+
+func (s *State) nextStep() {
+	s.updateVelocity()
+	s.move()
 }
 
 func (s *State) totalEnergy() int {
@@ -144,7 +143,7 @@ func LCM(a, b int, integers ...int) int {
 
 func isXAxisEquals(s1, s2 State) bool {
 	for i := range s1 {
-		if (s1[i].p.x != s2[i].p.x) || (s1[i].v.x != s2[i].v.x) {
+		if (s1[i].position.x != s2[i].position.x) || (s1[i].velocity.x != s2[i].velocity.x) {
 			return false
 		}
 	}
@@ -153,7 +152,7 @@ func isXAxisEquals(s1, s2 State) bool {
 
 func isYAxisEquals(s1, s2 State) bool {
 	for i := range s1 {
-		if (s1[i].p.y != s2[i].p.y) || (s1[i].v.y != s2[i].v.y) {
+		if (s1[i].position.y != s2[i].position.y) || (s1[i].velocity.y != s2[i].velocity.y) {
 			return false
 		}
 	}
@@ -162,7 +161,7 @@ func isYAxisEquals(s1, s2 State) bool {
 
 func isZAxisEquals(s1, s2 State) bool {
 	for i := range s1 {
-		if (s1[i].p.z != s2[i].p.z) || (s1[i].v.z != s2[i].v.z) {
+		if (s1[i].position.z != s2[i].position.z) || (s1[i].velocity.z != s2[i].velocity.z) {
 			return false
 		}
 	}
@@ -177,8 +176,8 @@ func NewState(lines []string) State {
 		y, _ := strconv.Atoi(strings.Split(position[1], "=")[1])
 		z, _ := strconv.Atoi(strings.Trim(strings.Split(position[2], "=")[1], ">"))
 		state = append(state, Point{
-			p: Position{x, y, z},
-			v: Velocity{},
+			position: Tuple{x, y, z},
+			velocity: Tuple{},
 		})
 	}
 	return state

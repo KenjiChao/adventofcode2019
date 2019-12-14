@@ -43,9 +43,26 @@ func main() {
 	}
 
 	fmt.Println(cost(1, indegree, reaction))
+
+	target := int(1e+12)
+	lo := 0
+	hi := int(1e+12)
+	for lo < hi {
+		mid := (lo + hi + 1) / 2
+		if cost(mid, indegree, reaction) <= target {
+			lo = mid
+		} else {
+			hi = mid - 1
+		}
+	}
+	fmt.Println(lo)
 }
 
-func cost(nFuel int, indegree map[string]int, reaction map[string]Reaction) int {
+func cost(nFuel int, original map[string]int, reaction map[string]Reaction) int {
+	indegree := make(map[string]int)
+	for k, v := range original {
+		indegree[k] = v
+	}
 	indegree[Dst] = 0
 	req := map[string]int{Dst: nFuel}
 	q := list.New()
